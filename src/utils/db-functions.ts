@@ -41,9 +41,10 @@ export const markMigrationComplete = async (video: VideoMetadata) => {
     where: { id: video.id },
     data: {
       migration_status: 'MIGRATED',
-      video_1080p_mp4_1: getNewUrl(video.video_1080p_mp4_1),
-      video_720p_mp4_1: getNewUrl(video.video_720p_mp4_1),
-      video_360p_mp4_1: getNewUrl(video.video_360p_mp4_1),
+      migrated_video_1080p_mp4_1: getNewUrl(video.video_1080p_mp4_1),
+      migrated_video_720p_mp4_1: getNewUrl(video.video_720p_mp4_1),
+      migrated_video_360p_mp4_1: getNewUrl(video.video_360p_mp4_1),
+      
     },
   });
 };
