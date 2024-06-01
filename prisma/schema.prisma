@@ -1,0 +1,287 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Course {
+  id             Int             @id @default(autoincrement())
+  title          String
+  imageUrl       String
+  description    String
+  slug           String
+  appxCourseId   Int
+  discordRoleId  String
+  openToEveryone Boolean         @default(false)
+  certIssued     Boolean         @default(false)
+  certificate    Certificate[]
+  content        CourseContent[]
+  purchasedBy    UserPurchases[]
+}
+
+model UserPurchases {
+  userId     String
+  courseId   Int
+  assignedAt DateTime @default(now())
+  course     Course   @relation(fields: [courseId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@id([userId, courseId])
+}
+
+model Content {
+  id               Int             @id @default(autoincrement())
+  type             String          @default("folder")
+  title            String
+  description      String?
+  thumbnail        String?
+  parentId         Int?
+  createdAt        DateTime        @default(now())
+  notionMetadataId Int?
+  hidden           Boolean         @default(false)
+  commentsCount    Int             @default(0)
+  bookmark         Bookmark[]
+  comments         Comment[]
+  parent           Content?        @relation("ContentToContent", fields: [parentId], references: [id])
+  children         Content[]       @relation("ContentToContent")
+  courses          CourseContent[]
+  NotionMetadata   NotionMetadata?
+  VideoMetadata    VideoMetadata?
+  videoProgress    VideoProgress[]
+}
+
+model CourseContent {
+  courseId  Int
+  contentId Int
+  content   Content @relation(fields: [contentId], references: [id])
+  course    Course  @relation(fields: [courseId], references: [id])
+
+  @@id([courseId, contentId])
+}
+
+model Certificate {
+  id       String @id @default(cuid())
+  userId   String
+  courseId Int
+  slug     String @default("certId")
+  course   Course @relation(fields: [courseId], references: [id])
+  user     User   @relation(fields: [userId], references: [id])
+
+  @@unique([userId, courseId])
+}
+
+model NotionMetadata {
+  id        Int     @id @default(autoincrement())
+  notionId  String
+  contentId Int     @unique
+  content   Content @relation(fields: [contentId], references: [id])
+}
+
+model VideoMetadata {
+  id                    Int             @id @default(autoincrement())
+  contentId             Int             @unique
+  video_1080p_1         String?
+  video_1080p_2         String?
+  video_1080p_3         String?
+  video_720p_1          String?
+  video_720p_2          String?
+  video_720p_3          String?
+  video_360p_1          String?
+  video_360p_2          String?
+  video_360p_3          String?
+  subtitles             String?
+  video_1080p_4         String?
+  video_360p_4          String?
+  video_720p_4          String?
+  slides                String?
+  video_1080p_mp4_1     String?
+  video_1080p_mp4_2     String?
+  video_1080p_mp4_3     String?
+  video_1080p_mp4_4     String?
+  video_360p_mp4_1      String?
+  video_360p_mp4_2      String?
+  video_360p_mp4_3      String?
+  video_360p_mp4_4      String?
+  video_720p_mp4_1      String?
+  video_720p_mp4_2      String?
+  video_720p_mp4_3      String?
+  video_720p_mp4_4      String?
+  segments              Json?
+  thumbnail_mosiac_url  String?
+  duration              Int?
+  migration_pickup_time DateTime?
+  migration_status      MigrationStatus @default(NOT_MIGRATED)
+  content               Content         @relation(fields: [contentId], references: [id])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id             String          @id @default(cuid())
+  email          String?         @unique
+  name           String?
+  disableDrm     Boolean         @default(false)
+  token          String?
+  password       String?
+  appxUserId     String?
+  appxUsername   String?
+  answers        Answer[]
+  bookmarks      Bookmark[]
+  certificate    Certificate[]
+  comments       Comment[]
+  discordConnect DiscordConnect?
+  questions      Question[]
+  sessions       Session[]
+  purchases      UserPurchases[]
+  videoProgress  VideoProgress[]
+  votes          Vote[]
+}
+
+model DiscordConnect {
+  id        String @id @default(cuid())
+  discordId String @unique
+  userId    String @unique
+  username  String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model DiscordConnectBulk {
+  id        String @id @default(cuid())
+  username  String
+  discordId String
+  userId    String
+}
+
+model VideoProgress {
+  id               Int      @id @default(autoincrement())
+  userId           String
+  contentId        Int
+  currentTimestamp Int
+  markAsCompleted  Boolean  @default(false)
+  updatedAt        DateTime @default(now()) @updatedAt
+  content          Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([contentId, userId])
+}
+
+model Bookmark {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  contentId Int
+  createdAt DateTime @default(now())
+  content   Content  @relation(fields: [contentId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Comment {
+  id           Int         @id @default(autoincrement())
+  content      String
+  commentType  CommentType @default(DEFAULT)
+  approved     Boolean     @default(false)
+  contentId    Int
+  parentId     Int?
+  userId       String
+  upvotes      Int         @default(0)
+  downvotes    Int         @default(0)
+  repliesCount Int         @default(0)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  isPinned     Boolean     @default(false)
+  commentedOn  Content     @relation(fields: [contentId], references: [id])
+  parent       Comment?    @relation("ParentComment", fields: [parentId], references: [id])
+  children     Comment[]   @relation("ParentComment")
+  user         User        @relation(fields: [userId], references: [id])
+  votes        Vote[]
+}
+
+model Question {
+  id           Int      @id @default(autoincrement())
+  title        String
+  content      String
+  slug         String   @unique
+  createdAt    DateTime @default(now())
+  authorId     String
+  upvotes      Int      @default(0)
+  downvotes    Int      @default(0)
+  totalanswers Int      @default(0)
+  tags         String[]
+  updatedAt    DateTime @updatedAt
+  answers      Answer[]
+  author       User     @relation(fields: [authorId], references: [id])
+  votes        Vote[]
+
+  @@index([authorId])
+}
+
+model Answer {
+  id           Int      @id @default(autoincrement())
+  content      String
+  createdAt    DateTime @default(now())
+  questionId   Int
+  authorId     String
+  upvotes      Int      @default(0)
+  downvotes    Int      @default(0)
+  totalanswers Int      @default(0)
+  parentId     Int?
+  updatedAt    DateTime @updatedAt
+  author       User     @relation(fields: [authorId], references: [id])
+  parent       Answer?  @relation("AnswerToAnswer", fields: [parentId], references: [id])
+  responses    Answer[] @relation("AnswerToAnswer")
+  question     Question @relation(fields: [questionId], references: [id])
+  votes        Vote[]
+
+  @@index([questionId])
+  @@index([authorId])
+  @@index([parentId])
+}
+
+model Vote {
+  id         Int       @id @default(autoincrement())
+  commentId  Int?
+  userId     String
+  voteType   VoteType
+  createdAt  DateTime  @default(now())
+  answerId   Int?
+  questionId Int?
+  answer     Answer?   @relation(fields: [answerId], references: [id])
+  comment    Comment?  @relation(fields: [commentId], references: [id])
+  question   Question? @relation(fields: [questionId], references: [id])
+  user       User      @relation(fields: [userId], references: [id])
+
+  @@unique([questionId, userId])
+  @@unique([answerId, userId])
+  @@unique([commentId, userId])
+}
+
+enum VoteType {
+  UPVOTE
+  DOWNVOTE
+}
+
+enum PostType {
+  QUESTION
+  ANSWER
+}
+
+enum CommentType {
+  INTRO
+  DEFAULT
+}
+
+enum MigrationStatus {
+  NOT_MIGRATED
+  IN_PROGRESS
+  MIGRATED
+  MIGRATION_ERROR
+}
